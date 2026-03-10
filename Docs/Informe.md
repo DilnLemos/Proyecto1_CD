@@ -4,7 +4,7 @@
 **Dataset:** Customer Shopping Dataset — Retail Sales Analysis 
 **Link:** https://www.kaggle.com/datasets/mehmettahiraslan/customer-shopping-dataset/data?select=customer_shopping_data.csv
 
-**Fecha:** 09 - Marzo - 2026  
+**Fecha:** 09 - Marzo - 2026 
 
 **Integrantes del Grupo:**
 - Dilan Mauricio Lemos — 202359416
