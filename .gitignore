@@ -1,0 +1,116 @@
+# ================================================
+# SEGURIDAD - Nunca subir
+# ================================================
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+secrets.json
+
+# ================================================
+# PYTHON
+# ================================================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+wheels/
+*.whl
+.Python
+
+# Ambientes virtuales
+venv/
+env/
+.venv/
+.env/
+ENV/
+
+# ================================================
+# JUPYTER NOTEBOOKS
+# ================================================
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+*.ipynb_checkpoints
+
+# ================================================
+# DATOS - No subir archivos pesados
+# ================================================
+*.xlsx
+*.xls
+*.parquet
+*.feather
+*.pickle
+*.pkl
+*.h5
+*.hdf5
+data/raw/
+data/processed/
+
+# ================================================
+# IDEs y EDITORES
+# ================================================
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# PyCharm / IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Spyder
+.spyderproject.cfg
+.spyproject/
+
+# Jupyter
+.jupyter/
+
+# ================================================
+# SISTEMA OPERATIVO
+# ================================================
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+
+# ================================================
+# LOGS Y TEMPORALES
+# ================================================
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+logs/
+tmp/
+temp/
