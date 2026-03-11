@@ -321,6 +321,7 @@ ORDER BY month ASC
 ## 8. Anexos
 
 ### Anexo A — Código Python ETL
+![codigo python]()
 
 ### Anexo B — Scripts SQL Completos
 
