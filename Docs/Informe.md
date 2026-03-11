@@ -59,8 +59,6 @@ El modelo seleccionado para el diseño de la bodega de datos es el **Modelo Estr
 
 ### 2.3 Diagrama de la Bodega de Datos
 
-Empecemos con los dos primeros. Primero déjame revisar el skill de diseño para el diagrama Mermaid.No hay un skill específico para Mermaid, así que lo construyo directamente. Aquí van los dos puntos:
-
 ---
 #### Descripción Textual del Modelo
 
@@ -133,48 +131,198 @@ El modelo está compuesto por una tabla de hechos central llamada `HECHOS_VENTAS
 ## 3. Extracción, Transformación y Carga de Datos (ETL)
 
 ### 3.1 Descripción del Proceso ETL
-
-
+El datatset se encuentra disponible en formato csv, para el primer paso(extracción) 
+se importa este archivo como objeto de tipo dataframe usando la librería pandas, es 
+necesario inspeccionar este datatset para poder describirlo correctamente, entender 
+el tipo de datos que se almacena para saber qué representa y como podemos trabajar 
+con esos datos.        
+```python
+csv_file = "customer_shopping_data.csv"
+df = pd.read_csv(csv_file)
+df.head()
+df.info()
+```                                                               
+El datatset contiene 99.457 entradas con datos en 10 columnas, el siguiente paso es 
+agrupar esas columnas según el modelo diseñado para la bodega de datos, este proceso 
+es la transformación, para esto creamos tablas para pagos, tiendas, fecha de ventas,  
+categorías y clientes, todas compartiendo al menos un atributo con la tabla de hechos.                                                                             
+Una vez estás tablas han sido creadas el siguiente paso es cargarlas a una base de datos, 
+para este proyecto se está usando una en la plataforma supabase.
 
 ### 3.2 Transformaciones Realizadas
+- 1 - los ids de transaccion y cliente tienen una inicial, esta se reemplaza por un entero
+
+```python
+df['invoice_no'] = df['invoice_no'].replace("^I", "1", regex=True).astype(int)
+df['customer_id'] = df['customer_id'].replace("^C", "2", regex=True).astype(int)
+``` 
+- 2 - Se convierte la fecha de compra en un tipo fecha
+```python
+df['invoice_date'] = pd.to_datetime(df['invoice_date'], format="%d/%m/%Y")
+```
+- 3 -Se cambia el nombre de las columnas de ID's para mejor claridad
+```python
+df.rename(columns={'customer_id': 'id_customer'}, inplace=True)
+df.rename(columns={'invoice_no': 'id_invoice'},inplace=True)
+```
+
+    antes:
+![dataset original](img/trans1-1.png)
+    
+    despues:
+![dataset 1er transformacion](img/trans1-2.png)
+
+- 4 - creacion de tablas del modelo
+
+- customer/cliente
+
+```python
+dim_customer = df[["id_customer", "gender", "age"]].copy()
+```
+
+- category
+
+
+```python
+dim_category = df[["category"]].drop_duplicates().reset_index(drop=True)
+dim_category["id_category"] = dim_category.index + 1
+```
+- date/fecha
+
+```python
+dim_date = df[["invoice_date"]].drop_duplicates().reset_index(drop=True)
+dim_date["id_date"] = dim_date.index + 1
+dim_date["day"] = dim_date["invoice_date"].dt.day
+dim_date["month"] = dim_date["invoice_date"].dt.month
+dim_date["year"] = dim_date["invoice_date"].dt.year
+
+```
+- store/tienda
+```python
+dim_store = df[["shopping_mall"]].drop_duplicates().reset_index(drop=True)
+dim_store["id_mall"] = dim_store.index + 1
+```
+
+- payment
+
+```python
+dim_payment = df[["payment_method"]].drop_duplicates().reset_index(drop=True)
+dim_payment["id_payment_method"] = dim_payment.index + 1
+```
+
+- tabla de hechos
+```python
+
+facts_sales = df.copy()
+facts_sales = facts_sales.merge(dim_category, on='category', how='left')
+facts_sales = facts_sales.merge(dim_date[['id_date', 'invoice_date']], on='invoice_date', how='left') 
+facts_sales = facts_sales.merge(dim_store, on='shopping_mall', how='left') 
+facts_sales = facts_sales.merge(dim_payment, on='payment_method', how='left') 
+facts_sales = facts_sales.drop(columns=['category', 'payment_method', 'shopping_mall', 'invoice_date', 'gender', 'age'])
+
+
+```
 
 
 ### 3.3 Evidencia de Carga en PostgreSQL
 
+- codigo carga en db:
+```python
+dim_customer.to_sql("dim_customer", engine, if_exists="replace", index=False)
+dim_category.to_sql("dim_category", engine, if_exists="replace", index=False)
+dim_date.to_sql("dim_date", engine, if_exists="replace", index=False)
+dim_store.to_sql("dim_store", engine, if_exists="replace", index=False)
+dim_payment.to_sql("dim_payment", engine, if_exists="replace", index=False)
+facts_sales.to_sql("facts_sales", engine, if_exists="replace", index=False)
+```
 
+![foto random](img/evidencePosgre.png)
+se muestra la tabla de hechos cargada y mostrada mediante una query en el servicio supabase*
 ---
 
 ## 4. Consultas Analíticas en SQL
 
 ### 4.1 Total de ventas por categoría de producto
-
-
+```sql
+SELECT c.category, COUNT(*) AS total         
+FROM facts_sales f                           
+JOIN dim_category c                          
+ON f.id_category = c.id_category             
+GROUP BY category; 
+```
 ### 4.2 Clientes con mayor volumen de compras
-
+```sql
+SELECT quantity, COUNT(*) AS total           
+FROM facts_sales                             
+GROUP BY quantity                            
+ORDER BY total DESC;  
+```
 
 ### 4.3 Métodos de pago más utilizados
-
+```sql
+SELECT p.payment_method, COUNT(*) AS total   
+FROM facts_sales f                           
+JOIN dim_payment p                           
+ON f.id_payment_method = p.id_payment_method 
+GROUP BY payment_method 
+```
 
 ### 4.4 Comparación de ventas por mes
-
+```sql
+SELECT d.month, COUNT(*) as total            
+FROM facts_sales f                           
+JOIN dim_date d                              
+ON f.id_date = d.id_date                     
+GROUP BY month                               
+ORDER BY month ASC
+```
 
 ---
 
 ## 5. Análisis Descriptivo y Visualización de Datos
 
 ### 5.1 Visualizaciones
+4.1 Total de ventas por categoría de producto
+![ventasxcat](img/diag1.png)
 
+4.2 Clientes con mayor volumen de compras
+![volCompras](img/diag2.png)
+
+4.3 Métodos de pago más utilizados
+![metodosPago](img/diag3.png)
+
+4.4 Comparación de ventas por mes
+![ventasxmes](img/diag4.png)
 
 ### 5.2 Tendencias e Insights
 
+- Las ventas se disparan a inicio de año, normalizándose hasta estabilizarse durante todo el año con un
+pequeño incremento gradual alrededor de junio y julio, la mayor diferencia entre el número de ventas se
+da entre diciembre y enero
+
+- el pago con tarjetas de débito es muy pequeño comparado al efectivo o crédito, indica que posiblemente
+una persona preferirá comprar solo lo que puede costear, pero también prefiere recurrir una deuda para
+adquirir productos
+
+- los productos de mayor interés son ropa, comida y cosmética, dos elementos de necesidad
 
 ### 5.3 Propuestas de Mejora para el Negocio
 
+- enfocar ofertas en precios a descuentos si el medio de pago es crédito, puesto que la mayoría de clientes prefiere comprar a crédito antes que abstenerse de compras que no pueden costear al momento esto podría aumentar las ventas si los precios parecieran más atractivos
+
+- el número máximo de elementos por compra es de 5, diseñar ofertas de productos en base al volumen
+(reducción de precios si se compra x cantidad) podría aumentar el volumen de ventas
+
+- ofertas productos de las categorías menos vendidas en co junto con otras que se venden más para vaciar
+stock viejo y potencialmente incrementar ventas
 
 ---
 
 ## 6. Conclusiones
 
+- La información es un elemento fundamental en la gestión empresarial ya que el estudio detallado de los movimientos de los recursos de una empresa pueden servir para mejorar su desempeño o mitigar movimientos o potenciales pérdidas generados por la mala gestión de estos recursos.
+- la ciencia de datos puede ayudar a hacer estos análisis al identificar asociaciones  e interacciones que resultan de la naturaleza del
+mercado, puede ser especialmente útil entonces también para plantear estrategias de mejoramiento de negocios o proyectos en general.
 
 ---
 
@@ -194,7 +342,11 @@ El modelo está compuesto por una tabla de hechos central llamada `HECHOS_VENTAS
 ## 8. Anexos
 
 ### Anexo A — Código Python ETL
+[codigo python](../src/df.ipynb)
 
 ### Anexo B — Scripts SQL Completos
+[codigo sql](../src/database.sql)
+[codigo sql](./querys.sql)
 
 ### Anexo C — Código Python Visualizaciones
+[codigo graficas](../src/graf.ipynb)
