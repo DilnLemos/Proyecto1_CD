@@ -126,6 +126,94 @@ El modelo está compuesto por una tabla de hechos central llamada `HECHOS_VENTAS
 ---
 ### 2.4 Script SQL — Creación de Tablas en PostgreSQL
 
+### Decisiones generales
+
+Las tablas de dimensiones se crean **antes** que la tabla de hechos. Esto es obligatorio en PostgreSQL porque `fact_sales` referencia a las dimensiones mediante claves foráneas, y no se puede referenciar una tabla que aún no existe.
+
+---
+
+### Tablas de Dimensiones
+
+**`dim_customer`**
+```sql
+CREATE TABLE dim_customer (
+    id_customer INTEGER PRIMARY KEY,
+    gender TEXT,
+    age INTEGER
+);
+```
+Almacena los atributos descriptivos del cliente. `id_customer` es la clave primaria entera que identifica unívocamente cada cliente. `gender` usa `TEXT` por ser un valor categórico de texto, y `age` usa `INTEGER` por ser un valor numérico entero sin decimales.
+
+---
+
+**`dim_category`**
+```sql
+CREATE TABLE dim_category (
+    id_category INTEGER PRIMARY KEY,
+    category TEXT
+);
+```
+Contiene las categorías de productos disponibles en el dataset. Se separó en su propia dimensión para evitar repetir el nombre de la categoría en cada fila de la tabla de hechos, almacenando en su lugar solo el `id_category` como referencia.
+
+---
+
+**`dim_date`**
+```sql
+CREATE TABLE dim_date (
+    id_date INTEGER PRIMARY KEY,
+    invoice_date DATE,
+    day INTEGER,
+    month INTEGER,
+    year INTEGER
+);
+```
+Es una de las dimensiones más importantes del modelo. Además de almacenar la fecha completa en formato `DATE`, se descompone explícitamente en `day`, `month` y `year` como columnas independientes. Esto facilita directamente las consultas analíticas por período de tiempo, como la comparación de ventas por mes que requiere el proyecto, sin necesidad de aplicar funciones de extracción de fecha en cada consulta.
+
+---
+
+**`dim_store`**
+```sql
+CREATE TABLE dim_store (
+    id_mall INTEGER PRIMARY KEY,
+    shopping_mall TEXT
+);
+```
+Almacena los centros comerciales donde se realizaron las compras. Se creó como dimensión independiente porque `shopping_mall` es una entidad con identidad propia que podría extenderse con más atributos en el futuro, como ubicación o ciudad.
+
+---
+
+**`dim_payment`**
+```sql
+CREATE TABLE dim_payment (
+    id_payment_method INTEGER PRIMARY KEY,
+    payment_method TEXT
+);
+```
+Contiene los métodos de pago disponibles. Aunque es una dimensión pequeña, se separó por coherencia estructural con el resto del modelo y para permitir que la tabla de hechos solo almacene el identificador numérico en lugar de repetir el texto del método de pago en cada transacción.
+
+---
+
+### Tabla de Hechos
+
+**`fact_sales`**
+```sql
+CREATE TABLE fact_sales (
+    id_invoice INTEGER PRIMARY KEY,
+    id_customer INTEGER REFERENCES dim_customer(id_customer),
+    id_category INTEGER REFERENCES dim_category(id_category),
+    id_date INTEGER REFERENCES dim_date(id_date),
+    id_mall INTEGER REFERENCES dim_store(id_mall),
+    id_payment_method INTEGER REFERENCES dim_payment(id_payment_method),
+    quantity INTEGER,
+    unit_price NUMERIC(10,2),
+    total_price NUMERIC(10,2)
+);
+```
+Es el centro del modelo estrella. Contiene dos tipos de columnas:
+
+- **Claves foráneas** (`id_customer`, `id_category`, `id_date`, `id_mall`, `id_payment_method`): cada una referencia su respectiva dimensión con `REFERENCES`, garantizando integridad referencial, es decir, que no pueda existir una venta que apunte a un cliente, categoría o fecha que no exista en sus tablas correspondientes.
+
+- **Métricas** (`quantity`, `unit_price`, `total_price`): son los valores numéricos que se analizan. `quantity` usa `INTEGER` por ser unidades enteras, mientras que `unit_price` y `total_price` usan `NUMERIC(10,2)` para soportar valores decimales con precisión de hasta 2 cifras, evitando errores de redondeo que ocurrirían con tipos como `FLOAT`. `total_price` es un valor calculado (`quantity × unit_price`) que se almacena explícitamente para optimizar las consultas analíticas sin necesidad de recalcularlo cada vez.
 ---
 
 ## 3. Extracción, Transformación y Carga de Datos (ETL)
@@ -250,6 +338,9 @@ JOIN dim_category c
 ON f.id_category = c.id_category             
 GROUP BY category; 
 ```
+
+![query](img/Query1.png)
+
 ### 4.2 Clientes con mayor volumen de compras
 ```sql
 SELECT quantity, COUNT(*) AS total           
@@ -257,6 +348,7 @@ FROM facts_sales
 GROUP BY quantity                            
 ORDER BY total DESC;  
 ```
+![query2](img/Query2.png)
 
 ### 4.3 Métodos de pago más utilizados
 ```sql
@@ -266,7 +358,7 @@ JOIN dim_payment p
 ON f.id_payment_method = p.id_payment_method 
 GROUP BY payment_method 
 ```
-
+![query3](img/Query3.png)
 ### 4.4 Comparación de ventas por mes
 ```sql
 SELECT d.month, COUNT(*) as total            
@@ -276,7 +368,7 @@ ON f.id_date = d.id_date
 GROUP BY month                               
 ORDER BY month ASC
 ```
-
+![query4](img/Query4.png)
 ---
 
 ## 5. Análisis Descriptivo y Visualización de Datos
