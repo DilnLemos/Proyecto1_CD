@@ -237,6 +237,7 @@ facts_sales.to_sql("facts_sales", engine, if_exists="replace", index=False)
 ```
 
 ![foto random](img/evidencePosgre.png)
+se muestra la tabla de hechos cargada y mostrada mediante una query en el servicio supabase*
 ---
 
 ## 4. Consultas Analíticas en SQL
@@ -295,13 +296,33 @@ ORDER BY month ASC
 
 ### 5.2 Tendencias e Insights
 
+- Las ventas se disparan a inicio de año, normalizándose hasta estabilizarse durante todo el año con un
+pequeño incremento gradual alrededor de junio y julio, la mayor diferencia entre el número de ventas se
+da entre diciembre y enero
+
+- el pago con tarjetas de débito es muy pequeño comparado al efectivo o crédito, indica que posiblemente
+una persona preferirá comprar solo lo que puede costear, pero también prefiere recurrir una deuda para
+adquirir productos
+
+- los productos de mayor interés son ropa, comida y cosmética, dos elementos de necesidad
+
 ### 5.3 Propuestas de Mejora para el Negocio
 
+- enfocar ofertas en precios a descuentos si el medio de pago es crédito, puesto que la mayoría de clientes prefiere comprar a crédito antes que abstenerse de compras que no pueden costear al momento esto podría aumentar las ventas si los precios parecieran más atractivos
+
+- el número máximo de elementos por compra es de 5, diseñar ofertas de productos en base al volumen
+(reducción de precios si se compra x cantidad) podría aumentar el volumen de ventas
+
+- ofertas productos de las categorías menos vendidas en co junto con otras que se venden más para vaciar
+stock viejo y potencialmente incrementar ventas
 
 ---
 
 ## 6. Conclusiones
 
+- La información es un elemento fundamental en la gestión empresarial ya que el estudio detallado de los movimientos de los recursos de una empresa pueden servir para mejorar su desempeño o mitigar movimientos o potenciales pérdidas generados por la mala gestión de estos recursos.
+- la ciencia de datos puede ayudar a hacer estos análisis al identificar asociaciones  e interacciones que resultan de la naturaleza del
+mercado, puede ser especialmente útil entonces también para plantear estrategias de mejoramiento de negocios o proyectos en general.
 
 ---
 
@@ -321,8 +342,11 @@ ORDER BY month ASC
 ## 8. Anexos
 
 ### Anexo A — Código Python ETL
-![codigo python]()
+[codigo python](../src/df.ipynb)
 
 ### Anexo B — Scripts SQL Completos
+[codigo sql](../src/database.sql)
+[codigo sql](./querys.sql)
 
 ### Anexo C — Código Python Visualizaciones
+[codigo graficas](../src/graf.ipynb)
