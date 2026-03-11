@@ -59,8 +59,6 @@ El modelo seleccionado para el diseño de la bodega de datos es el **Modelo Estr
 
 ### 2.3 Diagrama de la Bodega de Datos
 
-Empecemos con los dos primeros. Primero déjame revisar el skill de diseño para el diagrama Mermaid.No hay un skill específico para Mermaid, así que lo construyo directamente. Aquí van los dos puntos:
-
 ---
 #### Descripción Textual del Modelo
 
@@ -133,11 +131,43 @@ El modelo está compuesto por una tabla de hechos central llamada `HECHOS_VENTAS
 ## 3. Extracción, Transformación y Carga de Datos (ETL)
 
 ### 3.1 Descripción del Proceso ETL
-
-
+El datatset se encuentra disponible en formato csv, para el primer paso(extracción) 
+se importa este archivo como objeto de tipo dataframe usando la librería pandas, es 
+necesario inspeccionar este datatset para poder describirlo correctamente, entender 
+el tipo de datos que se almacena para saber qué representa y como podemos trabajar 
+con esos datos.        
+```python
+csv_file = "customer_shopping_data.csv"
+df = pd.read_csv(csv_file)
+df.head()
+df.info()
+```                                                               
+El datatset contiene 99.457 entradas con datos en 10 columnas, el siguiente paso es 
+agrupar esas columnas según el modelo diseñado para la bodega de datos, este proceso 
+es la transformación, para esto creamos tablas para pagos, tiendas, fecha de ventas,  
+categorías y clientes, todas compartiendo al menos un atributo con la tabla de hechos.                                                                             
+Una vez estás tablas han sido creadas el siguiente paso es cargarlas a una base de datos, 
+para este proyecto se está usando una en la plataforma supabase.
 
 ### 3.2 Transformaciones Realizadas
+- 1 - los ids de transaccion y cliente tienen una inicial, esta se reemplaza por un entero
 
+```python
+df['invoice_no'] = df['invoice_no'].replace("^I", "1", regex=True).astype(int)
+df['customer_id'] = df['customer_id'].replace("^C", "2", regex=True).astype(int)
+``` 
+- 2 - Se convierte la fecha de compra en un tipo fecha
+```python
+df['invoice_date'] = pd.to_datetime(df['invoice_date'], format="%d/%m/%Y")
+df.info()
+```
+
+
+    antes:
+![dataset original](img/trans1-1.png)
+    
+    despues:
+![dataset 1er transformacion](img/trans1-2.png)
 
 ### 3.3 Evidencia de Carga en PostgreSQL
 
