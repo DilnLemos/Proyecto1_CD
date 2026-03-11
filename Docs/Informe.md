@@ -159,9 +159,12 @@ df['customer_id'] = df['customer_id'].replace("^C", "2", regex=True).astype(int)
 - 2 - Se convierte la fecha de compra en un tipo fecha
 ```python
 df['invoice_date'] = pd.to_datetime(df['invoice_date'], format="%d/%m/%Y")
-df.info()
 ```
-
+- 3 -Se cambia el nombre de las columnas de ID's para mejor claridad
+```python
+df.rename(columns={'customer_id': 'id_customer'}, inplace=True)
+df.rename(columns={'invoice_no': 'id_invoice'},inplace=True)
+```
 
     antes:
 ![dataset original](img/trans1-1.png)
@@ -169,34 +172,128 @@ df.info()
     despues:
 ![dataset 1er transformacion](img/trans1-2.png)
 
+- 4 - creacion de tablas del modelo
+
+- customer/cliente
+
+```python
+dim_customer = df[["id_customer", "gender", "age"]].copy()
+```
+
+- category
+
+
+```python
+dim_category = df[["category"]].drop_duplicates().reset_index(drop=True)
+dim_category["id_category"] = dim_category.index + 1
+```
+- date/fecha
+
+```python
+dim_date = df[["invoice_date"]].drop_duplicates().reset_index(drop=True)
+dim_date["id_date"] = dim_date.index + 1
+dim_date["day"] = dim_date["invoice_date"].dt.day
+dim_date["month"] = dim_date["invoice_date"].dt.month
+dim_date["year"] = dim_date["invoice_date"].dt.year
+
+```
+- store/tienda
+```python
+dim_store = df[["shopping_mall"]].drop_duplicates().reset_index(drop=True)
+dim_store["id_mall"] = dim_store.index + 1
+```
+
+- payment
+
+```python
+dim_payment = df[["payment_method"]].drop_duplicates().reset_index(drop=True)
+dim_payment["id_payment_method"] = dim_payment.index + 1
+```
+
+- tabla de hechos
+```python
+
+facts_sales = df.copy()
+facts_sales = facts_sales.merge(dim_category, on='category', how='left')
+facts_sales = facts_sales.merge(dim_date[['id_date', 'invoice_date']], on='invoice_date', how='left') 
+facts_sales = facts_sales.merge(dim_store, on='shopping_mall', how='left') 
+facts_sales = facts_sales.merge(dim_payment, on='payment_method', how='left') 
+facts_sales = facts_sales.drop(columns=['category', 'payment_method', 'shopping_mall', 'invoice_date', 'gender', 'age'])
+
+
+```
+
+
 ### 3.3 Evidencia de Carga en PostgreSQL
 
+- codigo carga en db:
+```python
+dim_customer.to_sql("dim_customer", engine, if_exists="replace", index=False)
+dim_category.to_sql("dim_category", engine, if_exists="replace", index=False)
+dim_date.to_sql("dim_date", engine, if_exists="replace", index=False)
+dim_store.to_sql("dim_store", engine, if_exists="replace", index=False)
+dim_payment.to_sql("dim_payment", engine, if_exists="replace", index=False)
+facts_sales.to_sql("facts_sales", engine, if_exists="replace", index=False)
+```
 
+![foto random](img/evidencePosgre.png)
 ---
 
 ## 4. Consultas Analíticas en SQL
 
 ### 4.1 Total de ventas por categoría de producto
-
-
+```sql
+SELECT c.category, COUNT(*) AS total         
+FROM facts_sales f                           
+JOIN dim_category c                          
+ON f.id_category = c.id_category             
+GROUP BY category; 
+```
 ### 4.2 Clientes con mayor volumen de compras
-
+```sql
+SELECT quantity, COUNT(*) AS total           
+FROM facts_sales                             
+GROUP BY quantity                            
+ORDER BY total DESC;  
+```
 
 ### 4.3 Métodos de pago más utilizados
-
+```sql
+SELECT p.payment_method, COUNT(*) AS total   
+FROM facts_sales f                           
+JOIN dim_payment p                           
+ON f.id_payment_method = p.id_payment_method 
+GROUP BY payment_method 
+```
 
 ### 4.4 Comparación de ventas por mes
-
+```sql
+SELECT d.month, COUNT(*) as total            
+FROM facts_sales f                           
+JOIN dim_date d                              
+ON f.id_date = d.id_date                     
+GROUP BY month                               
+ORDER BY month ASC
+```
 
 ---
 
 ## 5. Análisis Descriptivo y Visualización de Datos
 
 ### 5.1 Visualizaciones
+4.1 Total de ventas por categoría de producto
+![ventasxcat](img/diag1.png)
 
+4.2 Clientes con mayor volumen de compras
+![volCompras](img/diag2.png)
+
+4.3 Métodos de pago más utilizados
+![metodosPago](img/diag3.png)
+
+4.4 Comparación de ventas por mes
+![ventasxmes](img/diag4.png)
 
 ### 5.2 Tendencias e Insights
-
 
 ### 5.3 Propuestas de Mejora para el Negocio
 
